@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "devops-api-chart.fullname" . }}
+  labels:
+    {{- include "devops-api-chart.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "devops-api-chart.selectorLabels" . | nindent 6 }}
