@@ -1,8 +1,8 @@
 stages:
   - test
   - lint
-  - security
   - build
+  - security
   - deploy
 
 variables:
@@ -26,7 +26,7 @@ lint_job:
   tags:
     - docker
   script:
-    - echo "🔍 Линтинг Helm-чарта..."
+    - echo " Линтинг Helm-чарта..."
     - helm lint ./helm-chart || echo "Helm lint завершен"
 
 build_job:
@@ -50,8 +50,8 @@ security_job:
   tags:
     - docker
   script:
-    - echo "️ Сканирование образа на уязвимости..."
-    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME || (echo " CRITICAL уязвимости!" && exit 1)
+    - echo "🛡️ Сканирование образа на уязвимости..."
+    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME || (echo "❌ CRITICAL уязвимости!" && exit 1)
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
