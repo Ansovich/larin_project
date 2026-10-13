@@ -15,7 +15,6 @@ test_job:
   tags:
     - docker
   script:
-    - echo " Установка зависимостей и запуск тестов..."
     - pip install --no-cache-dir -r requirements.txt || echo "requirements.txt не найден"
     - pip install pytest
     - python -m pytest tests/ -v || echo "Тесты не найдены"
@@ -23,11 +22,11 @@ test_job:
 lint_job:
   stage: lint
   image: alpine/helm:latest
+  entrypoint: [""]
   tags:
     - docker
   script:
-    - echo "🔍 Линтинг Helm-чарта..."
-    - helm lint ./helm-chart || echo "Helm lint завершен с предупреждениями"
+    - helm lint ./helm-chart || echo "Helm lint завершен"
 
 build_job:
   stage: build
@@ -37,7 +36,6 @@ build_job:
   services:
     - docker:24.0.5-dind
   script:
-    - echo "📦 Сборка Docker образа..."
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
@@ -50,8 +48,7 @@ security_job:
   tags:
     - docker
   script:
-    - echo "🛡️ Сканирование образа на уязвимости..."
-    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME || (echo "❌ CRITICAL уязвимости!" && exit 1)
+    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME || (echo "CRITICAL уязвимости!" && exit 1)
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
@@ -60,11 +57,11 @@ security_job:
 deploy_job:
   stage: deploy
   image: alpine/helm:latest
+  entrypoint: [""]
   tags:
     - docker
   script:
-    - echo "🚀 Деплой через Helm..."
-    - helm upgrade --install devops-api ./helm-chart --set image.tag=$CI_COMMIT_SHORT_SHA --set image.repository=$CI_REGISTRY_IMAGE --namespace default || echo "K8s кластер не настроен"
+    - helm upgrade --install devops-api ./helm-chart --set image.tag=$CI_COMMIT_SHORT_SHA --set image.repository=$CI_REGISTRY_IMAGE --namespace default || echo "K8s не настроен"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
