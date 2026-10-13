@@ -1,0 +1,112 @@
+# CI/CD Pipeline для DevOps Test API
+# Пункт 4 задания
+
+stages:
+  - test
+  - lint
+  - security
+  - build
+  - deploy
+
+# Переменные для всего пайплайна
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  REGISTRY_URL: "192.168.65.21:8080"
+  IMAGE_NAME: "$REGISTRY_URL/root/devops-api"
+  HELM_RELEASE: "devops-api"
+  HELM_NAMESPACE: "default"
+
+# 4.1.a: Установка зависимостей и запуск unit-тестов
+test:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/test_db"
+  before_script:
+    - pip install --no-cache-dir -r requirements.txt
+  script:
+    - python -m pytest tests/ -v --tb=short
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# 4.1.b: Проверка Kubernetes/Helm манифестов
+helm-lint:
+  stage: lint
+  image: alpine/helm:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Linting Helm chart..."
+    - helm lint devops-api-chart
+    - echo "Helm lint passed!"
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# 4.1.c: Проверка Docker-образа на уязвимости с помощью Trivy
+trivy-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  variables:
+    TRIVY_SEVERITY: "CRITICAL"
+    TRIVY_EXIT_CODE: 1
+  before_script:
+    - docker build -t $IMAGE_NAME:temp .
+  script:
+    - echo "Scanning image for vulnerabilities..."
+    - trivy image --severity $TRIVY_SEVERITY --exit-code $TRIVY_EXIT_CODE $IMAGE_NAME:temp
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# 4.1.d: Сборка Docker-образа, тегирование SHA, push в Registry
+build:
+  stage: build
+  image: docker:24.0
+  services:
+    - docker:24.0-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $REGISTRY_URL
+  script:
+    - echo "Building Docker image..."
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_SHA .
+    - docker tag $IMAGE_NAME:$CI_COMMIT_SHA $IMAGE_NAME:latest
+    - echo "Pushing to GitLab Registry..."
+    - docker push $IMAGE_NAME:$CI_COMMIT_SHA
+    - docker push $IMAGE_NAME:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# 4.1.e: Развертывание через Helm с правильным тегом
+deploy:
+  stage: deploy
+  image: alpine/helm:latest
+  variables:
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Deploying with Helm..."
+    - echo "Using image tag: $IMAGE_TAG"
+    - helm upgrade --install $HELM_RELEASE devops-api-chart \
+        --namespace $HELM_NAMESPACE \
+        --set image.tag=$IMAGE_TAG \
+        --set image.repository=$IMAGE_NAME \
+        --wait --timeout 300s
+    - echo "Deployment completed!"
+  environment:
+    name: production
+    url: http://192.168.65.21:8000
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+    - if: $CI_COMMIT_BRANCH != "main"
+      when: always
