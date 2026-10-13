@@ -87,13 +87,12 @@ deploy:
   script:
     - echo "Deploying with Helm..."
     - echo "Using image tag: $IMAGE_TAG"
-    - >
-      helm upgrade --install $HELM_RELEASE devops-api-chart
-      --namespace $HELM_NAMESPACE
-      --set image.tag=$IMAGE_TAG
-      --set image.repository=$IMAGE_NAME
-      --wait
-      --timeout 300s
+    - HELM_ARGS="--install $HELM_RELEASE devops-api-chart"
+    - HELM_ARGS="$HELM_ARGS --namespace $HELM_NAMESPACE"
+    - HELM_ARGS="$HELM_ARGS --set image.tag=$IMAGE_TAG"
+    - HELM_ARGS="$HELM_ARGS --set image.repository=$IMAGE_NAME"
+    - HELM_ARGS="$HELM_ARGS --wait --timeout 300s"
+    - helm upgrade $HELM_ARGS
     - echo "Deployment completed!"
   environment:
     name: production
