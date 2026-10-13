@@ -21,8 +21,9 @@ test_job:
 
 lint_job:
   stage: lint
-  image: alpine/helm:latest
-  entrypoint: [""]
+  image:
+    name: alpine/helm:latest
+    entrypoint: [""]
   tags:
     - docker
   script:
@@ -56,8 +57,9 @@ security_job:
 
 deploy_job:
   stage: deploy
-  image: alpine/helm:latest
-  entrypoint: [""]
+  image:
+    name: alpine/helm:latest
+    entrypoint: [""]
   tags:
     - docker
   script:
