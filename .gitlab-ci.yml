@@ -38,8 +38,8 @@ build_job:
   tags:
     - docker
   services:
-    - name: docker:24.0.5-dind
-      alias: docker
+    # Оставляем только имя образа. GitLab сам сделает alias=docker
+    - docker:24.0.5-dind
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
