@@ -9,8 +9,6 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   DOCKER_HOST: tcp://docker:2375
-  # Добавляем insecure registry для Docker daemon
-  DOCKER_DAEMON_OPTIONS: "--insecure-registry 192.168.65.21:8080"
   REGISTRY_HOST: "192.168.65.21:8080"
   IMAGE_NAME: "$REGISTRY_HOST/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
@@ -45,7 +43,8 @@ build_job:
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
-    - docker build -t $IMAGE_NAME .
+    # Отключаем provenance, чтобы избежать 404 ошибки манифеста в GitLab Registry
+    - docker build --provenance=false --sbom=false -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
