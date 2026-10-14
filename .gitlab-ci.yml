@@ -7,9 +7,11 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  # Отключаем TLS для docker:dind, чтобы разрешить работу с HTTP-реестром
+  # Отключаем TLS для docker:dind
   DOCKER_TLS_CERTDIR: ""
-  # Адрес реестра без http/https префикса для docker login
+  # Явно указываем, где искать Docker-демон внутри CI
+  DOCKER_HOST: tcp://docker:2375
+  # Адрес реестра без http/https префикса
   REGISTRY_HOST: "192.168.65.21:8080"
   IMAGE_NAME: "$REGISTRY_HOST/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
@@ -44,7 +46,7 @@ build_job:
     - docker:24.0.5-dind
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
-    # Логинимся явно на хост без префикса https, используя встроенные переменные GitLab
+    # Логинимся на хост без префикса https
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
