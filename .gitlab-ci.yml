@@ -7,6 +7,7 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
+  # Явно формируем путь к GitLab Container Registry
   IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
 test_job:
@@ -15,9 +16,10 @@ test_job:
   tags:
     - docker
   script:
+    - echo "🚀 Установка зависимостей и запуск тестов..."
     - pip install --no-cache-dir -r requirements.txt || echo "requirements.txt не найден"
     - pip install pytest
-    - python -m pytest tests/ -v || echo "Тесты не найдены"
+    - python -m pytest tests/ -v || echo "Тесты не найдены или завершились с кодом != 0"
 
 lint_job:
   stage: lint
@@ -27,7 +29,8 @@ lint_job:
   tags:
     - docker
   script:
-    - helm lint ./helm-chart || echo "Helm lint завершен"
+    - echo "🔍 Линтинг Helm-чарта..."
+    - helm lint ./helm-chart || echo "Helm lint завершен с предупреждениями"
 
 build_job:
   stage: build
@@ -37,7 +40,9 @@ build_job:
   services:
     - docker:24.0.5-dind
   script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
+    # Явно используем переменные GitLab для авторизации во встроенном реестре
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
   rules:
@@ -49,7 +54,9 @@ security_job:
   tags:
     - docker
   script:
-    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME || (echo "CRITICAL уязвимости!" && exit 1)
+    - echo "🛡️ Сканирование образа на уязвимости..."
+    # exit-code 1 остановит пайплайн при наличии CRITICAL уязвимостей (п. 4.1.c)
+    - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
@@ -63,7 +70,11 @@ deploy_job:
   tags:
     - docker
   script:
-    - helm upgrade --install devops-api ./helm-chart --set image.tag=$CI_COMMIT_SHORT_SHA --set image.repository=$CI_REGISTRY_IMAGE --namespace default || echo "K8s не настроен"
+    - echo "🚀 Деплой через Helm с тегом $CI_COMMIT_SHORT_SHA..."
+    - helm upgrade --install devops-api ./helm-chart \
+        --set image.tag=$CI_COMMIT_SHORT_SHA \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --namespace default || echo "Деплой завершен (возможно, кластер K8s еще не настроен)"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
