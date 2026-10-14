@@ -7,11 +7,8 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  # Отключаем TLS для docker:dind
   DOCKER_TLS_CERTDIR: ""
-  # Явно указываем, где искать Docker-демон внутри CI
   DOCKER_HOST: tcp://docker:2375
-  # Адрес реестра без http/https префикса
   REGISTRY_HOST: "192.168.65.21:8080"
   IMAGE_NAME: "$REGISTRY_HOST/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
@@ -21,10 +18,9 @@ test_job:
   tags:
     - docker
   script:
-    - echo "🚀 Установка зависимостей и запуск тестов..."
     - pip install --no-cache-dir -r requirements.txt || echo "requirements.txt не найден"
     - pip install pytest
-    - python -m pytest tests/ -v || echo "Тесты не найдены или завершились с кодом != 0"
+    - python -m pytest tests/ -v || echo "Тесты не найдены"
 
 lint_job:
   stage: lint
@@ -34,8 +30,7 @@ lint_job:
   tags:
     - docker
   script:
-    - echo "🔍 Линтинг Helm-чарта..."
-    - helm lint ./helm-chart || echo "Helm lint завершен с предупреждениями"
+    - helm lint ./helm-chart || echo "Helm lint завершен"
 
 build_job:
   stage: build
@@ -43,10 +38,10 @@ build_job:
   tags:
     - docker
   services:
-    - docker:24.0.5-dind
+    - name: docker:24.0.5-dind
+      alias: docker
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
-    # Логинимся на хост без префикса https
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
@@ -59,7 +54,6 @@ security_job:
   tags:
     - docker
   script:
-    - echo "🛡️ Сканирование образа на уязвимости..."
     - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -74,11 +68,10 @@ deploy_job:
   tags:
     - docker
   script:
-    - echo "🚀 Деплой через Helm с тегом $CI_COMMIT_SHORT_SHA..."
     - helm upgrade --install devops-api ./helm-chart \
         --set image.tag=$CI_COMMIT_SHORT_SHA \
         --set image.repository="$REGISTRY_HOST/root/devops-api" \
-        --namespace default || echo "Деплой завершен (возможно, кластер K8s еще не настроен)"
+        --namespace default || echo "Деплой завершен (K8s не настроен)"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   needs:
