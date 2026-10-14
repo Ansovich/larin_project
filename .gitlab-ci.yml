@@ -7,8 +7,9 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  # Явно формируем путь к GitLab Container Registry
-  IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  # Жестко задаем адрес GitLab Registry, чтобы Docker не лез в docker.io
+  CI_REGISTRY: "192.168.65.21:8080"
+  IMAGE_NAME: "$CI_REGISTRY/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
 test_job:
   stage: test
@@ -41,7 +42,7 @@ build_job:
     - docker:24.0.5-dind
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
-    # Явно используем переменные GitLab для авторизации во встроенном реестре
+    # Используем встроенные переменные GitLab CI (они есть автоматически!)
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
@@ -55,7 +56,6 @@ security_job:
     - docker
   script:
     - echo "🛡️ Сканирование образа на уязвимости..."
-    # exit-code 1 остановит пайплайн при наличии CRITICAL уязвимостей (п. 4.1.c)
     - trivy image --exit-code 1 --severity CRITICAL $IMAGE_NAME
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -73,7 +73,7 @@ deploy_job:
     - echo "🚀 Деплой через Helm с тегом $CI_COMMIT_SHORT_SHA..."
     - helm upgrade --install devops-api ./helm-chart \
         --set image.tag=$CI_COMMIT_SHORT_SHA \
-        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.repository="$CI_REGISTRY/root/devops-api" \
         --namespace default || echo "Деплой завершен (возможно, кластер K8s еще не настроен)"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
