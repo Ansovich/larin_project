@@ -7,9 +7,11 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  # Жестко задаем адрес GitLab Registry, чтобы Docker не лез в docker.io
-  CI_REGISTRY: "192.168.65.21:8080"
-  IMAGE_NAME: "$CI_REGISTRY/root/devops-api:$CI_COMMIT_SHORT_SHA"
+  # Отключаем TLS для docker:dind, чтобы разрешить работу с HTTP-реестром
+  DOCKER_TLS_CERTDIR: ""
+  # Адрес реестра без http/https префикса для docker login
+  REGISTRY_HOST: "192.168.65.21:8080"
+  IMAGE_NAME: "$REGISTRY_HOST/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
 test_job:
   stage: test
@@ -42,8 +44,8 @@ build_job:
     - docker:24.0.5-dind
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
-    # Используем встроенные переменные GitLab CI (они есть автоматически!)
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    # Логинимся явно на хост без префикса https, используя встроенные переменные GitLab
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
     - docker build -t $IMAGE_NAME .
     - docker push $IMAGE_NAME
   rules:
@@ -73,7 +75,7 @@ deploy_job:
     - echo "🚀 Деплой через Helm с тегом $CI_COMMIT_SHORT_SHA..."
     - helm upgrade --install devops-api ./helm-chart \
         --set image.tag=$CI_COMMIT_SHORT_SHA \
-        --set image.repository="$CI_REGISTRY/root/devops-api" \
+        --set image.repository="$REGISTRY_HOST/root/devops-api" \
         --namespace default || echo "Деплой завершен (возможно, кластер K8s еще не настроен)"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
