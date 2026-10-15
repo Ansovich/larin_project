@@ -52,6 +52,7 @@ build_job:
 security_job:
   stage: security
   image: aquasec/trivy:latest
+  entrypoint: [""]
   tags:
     - docker
   script:
