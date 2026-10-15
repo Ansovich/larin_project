@@ -10,7 +10,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   DOCKER_HOST: tcp://docker:2375
   # Порт 8080, так как он проброшен на порт 80 внутри контейнера
-  REGISTRY_HOST: "192.168.65.21:8080"
+  REGISTRY_HOST: "192.168.65.21:5050"
   IMAGE_NAME: "$REGISTRY_HOST/root/devops-api:$CI_COMMIT_SHORT_SHA"
 
 test_job:
@@ -40,7 +40,7 @@ build_job:
     - docker
   services:
     - name: docker:24.0.5-dind
-      command: ["--insecure-registry", "192.168.65.21:8080"]
+      command: ["--insecure-registry", "192.168.65.21:5050"]
   script:
     - echo "📦 Сборка Docker образа и отправка в GitLab Registry..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY_HOST
