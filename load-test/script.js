@@ -17,7 +17,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.get('http://devops-api.default.svc.cluster.local:8000/healthz');
+  const res = http.get('http://localhost:8000/healthz');
   
   check(res, {
     'status is 200': (r) => r.status === 200,
