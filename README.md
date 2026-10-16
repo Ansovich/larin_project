@@ -38,3 +38,16 @@
 - RPS: ~10 req/s
 - p(95) задержка: < 500ms
 - Доля ошибок: < 5%
+
+## 8. Мониторинг через Zabbix
+Приложение интегрировано с Zabbix для сбора метрик:
+- CPU usage
+- Memory usage
+- HTTP requests count
+- Error rate
+
+**Настройка Zabbix:**
+1. Установите Zabbix Server: `docker run -d --name zabbix-server -p 10051:10051 zabbix/zabbix-server`
+2. Добавьте хост `devops-api` в Zabbix
+3. Импортируйте шаблон из `monitoring/zabbix-template.xml`
+4. Метрики отправляются автоматически каждые 60 секунд

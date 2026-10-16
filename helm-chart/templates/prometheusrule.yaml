@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "devops-api.fullname" . }}-alerts
+spec:
+  groups:
+    - name: devops-api.rules
+      rules:
+        - alert: High5xxErrorRate
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[1m])) 
+            / 
+            sum(rate(http_requests_total[1m])) 
+            > 0.05
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Высокая доля ошибок 5xx (>5%) в приложении DevOps API"
+            description: "Доля HTTP-ответов с кодами 500-599 превышает 5% за последнюю минуту."

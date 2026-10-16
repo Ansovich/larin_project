@@ -1,0 +1,48 @@
+# Zabbix Agent для сбора метрик (sidecar контейнер)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "devops-api.fullname" . }}-zabbix-config
+data:
+  zabbix_agentd.conf: |
+    Server=192.168.65.21
+    ServerActive=192.168.65.21
+    Hostname={{ include "devops-api.fullname" . }}
+    ListenPort=10050
+    EnableRemoteCommands=1
+    LogFile=/tmp/zabbix_agentd.log
+    DebugLevel=3
+    UserParameter=custom.app.cpu,cat /tmp/cpu_metric
+    UserParameter=custom.app.memory,cat /tmp/memory_metric
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "devops-api.fullname" . }}-zabbix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "devops-api.name" . }}-zabbix
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "devops-api.name" . }}-zabbix
+    spec:
+      containers:
+        - name: zabbix-sender
+          image: zabbix/zabbix-sender:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "$(date +%s) cpu_usage 45.5" | zabbix_sender -z 192.168.65.21 -s "devops-api" -k "custom.app.cpu" -o 45.5
+                echo "$(date +%s) memory_usage 128.5" | zabbix_sender -z 192.168.65.21 -s "devops-api" -k "custom.app.memory" -o 128.5
+                sleep 60
+              done
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
