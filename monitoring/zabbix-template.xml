@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>6.0</version>
+    <groups>
+        <group>
+            <name>Applications</name>
+        </group>
+    </groups>
+    <templates>
+        <template>
+            <template>DevOps-API-Template</template>
+            <name>DevOps API Template</name>
+            <groups>
+                <group>
+                    <name>Applications</name>
+                </group>
+            </groups>
+            <items>
+                <item>
+                    <name>CPU Usage</name>
+                    <type>ZABBIX_ACTIVE</type>
+                    <key>custom.app.cpu</key>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                </item>
+                <item>
+                    <name>Memory Usage</name>
+                    <type>ZABBIX_ACTIVE</type>
+                    <key>custom.app.memory</key>
+                    <value_type>FLOAT</value_type>
+                    <units>MB</units>
+                </item>
+            </items>
+            <triggers>
+                <trigger>
+                    <expression>{DevOps-API-Template:custom.app.cpu.last()}&gt;80</expression>
+                    <name>CPU usage is too high (&gt;80%)</name>
+                    <priority>WARNING</priority>
+                </trigger>
+            </triggers>
+        </template>
+    </templates>
+</zabbix_export>
